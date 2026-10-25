@@ -2,14 +2,24 @@
 # Scan from a Fujitsu/PFU ScanSnap iX500 over USB (SANE) into a searchable PDF.
 #
 # Usage: scan-ix500 [--mode color|gray|bw] [--dpi N] [--simplex] [--lang deu+eng]
-#                   [--out DIR] [--no-ocr]
+#                   [--save pdf|pdf-pages|jpeg|png] [--out DIR] [--no-ocr] [--no-df]
 #
-# The last line of output is "PDF: <path>" on success.
+# --save pdf        all pages in one PDF (default)
+# --save pdf-pages  one PDF per page, in a folder named after the scan
+# --save jpeg|png   one image per page, in a folder named after the scan
+# OCR applies to PDFs only.
+#
+# Double-feed detection (ultrasonic) is on by default: the scanner stops when it
+# pulls in two sheets at once. Pages scanned before that are still saved, and
+# the script exits with 8. --no-df turns it off (envelopes, cards, stickers).
+#
+# The last line of output is "OUTPUT: <path>" (the file, or the folder for
+# per-page output) whenever something was saved.
 
 set -uo pipefail
 
 # GUI apps don't inherit the shell PATH
-export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+export PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"
 
 mode="color"
 dpi=300
@@ -17,6 +27,8 @@ source="ADF Duplex"
 lang="deu+eng"
 outdir="$HOME/Documents/Scans"
 ocr=1
+df=1
+save="pdf"
 
 while (( $# )); do
   case "$1" in
@@ -26,7 +38,9 @@ while (( $# )); do
     --lang)    lang="$2"; shift 2 ;;
     --out)     outdir="$2"; shift 2 ;;
     --no-ocr)  ocr=0; shift ;;
-    -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
+    --no-df)   df=0; shift ;;
+    --save)    save="$2"; shift 2 ;;
+    -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
 done
@@ -37,6 +51,12 @@ case "$mode" in
   bw)    sane_mode="Lineart" ;;
   *) echo "Unknown mode: $mode (color|gray|bw)" >&2; exit 2 ;;
 esac
+
+case "$save" in
+  pdf|pdf-pages|jpeg|png) ;;
+  *) echo "Unknown save format: $save (pdf|pdf-pages|jpeg|png)" >&2; exit 2 ;;
+esac
+[[ "$save" == jpeg || "$save" == png ]] && ocr=0
 
 for tool in scanimage img2pdf; do
   command -v "$tool" >/dev/null || { echo "Missing $tool. Run: brew install sane-backends img2pdf ocrmypdf tesseract-lang" >&2; exit 3; }
@@ -53,29 +73,75 @@ echo "Device: $device"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-echo "Scanning ($sane_mode, $dpi dpi, $source) ..."
+if (( df )); then
+  df_opts=(--df-action Stop --df-thickness=yes --df-length=yes)
+else
+  df_opts=(--df-action Continue)
+fi
+
+echo "Scanning ($sane_mode, $dpi dpi, $source, double-feed detection $( (( df )) && echo on || echo off )) ..."
 # scanimage exits non-zero when the feeder runs empty, which is the normal end of a batch
 scanimage -d "$device" --source "$source" --mode "$sane_mode" --resolution "$dpi" \
-  --swdeskew=yes --swcrop=yes --swskip 10 \
-  --format=tiff --batch="$tmp/page-%03d.tif" 2>&1 | grep -E '^Scanned page|error|Error' || true
+  --swdeskew=yes --swcrop=yes --swskip 10 "${df_opts[@]}" \
+  --format=tiff --batch="$tmp/page-%03d.tif" > "$tmp/scan.log" 2>&1
+grep -E '^Scanned page|error|Error' "$tmp/scan.log"
+
+doublefeed=0
+if grep -qi 'jammed' "$tmp/scan.log"; then
+  doublefeed=1
+  echo "DOUBLE FEED: the scanner stopped, probably two sheets at once. Check the last page and rescan the rest." >&2
+fi
 
 shopt -s nullglob
 pages=("$tmp"/page-*.tif)
 if (( ${#pages[@]} == 0 )); then
+  (( doublefeed )) && exit 8
   echo "No pages scanned. Is there paper in the feeder?" >&2
   exit 5
 fi
 echo "${#pages[@]} page(s) scanned"
 
 mkdir -p "$outdir"
-out="$outdir/Scan $(date '+%Y-%m-%d %H.%M.%S').pdf"
+name="Scan $(date '+%Y-%m-%d %H.%M.%S')"
 
-img2pdf "${pages[@]}" -o "$tmp/raw.pdf" || exit 6
-if (( ocr )); then
-  echo "Running OCR ($lang) ..."
-  ocrmypdf -q -l "$lang" --rotate-pages --optimize 1 "$tmp/raw.pdf" "$out" || exit 7
-else
-  mv "$tmp/raw.pdf" "$out"
-fi
+# Write one PDF from the given TIFFs, with OCR if enabled
+make_pdf() {
+  local dest="$1"; shift
+  img2pdf "$@" -o "$tmp/raw.pdf" || exit 6
+  if (( ocr )); then
+    ocrmypdf -q -l "$lang" --rotate-pages --optimize 1 "$tmp/raw.pdf" "$dest" || exit 7
+  else
+    mv "$tmp/raw.pdf" "$dest"
+  fi
+}
 
-echo "PDF: $out"
+(( ocr )) && echo "Running OCR ($lang) ..."
+case "$save" in
+  pdf)
+    out="$outdir/$name.pdf"
+    make_pdf "$out" "${pages[@]}"
+    ;;
+  pdf-pages)
+    out="$outdir/$name"
+    mkdir -p "$out"
+    n=0
+    for page in "${pages[@]}"; do
+      n=$((n + 1))
+      make_pdf "$out/$(printf 'Seite %03d' "$n").pdf" "$page"
+    done
+    ;;
+  jpeg|png)
+    out="$outdir/$name"
+    mkdir -p "$out"
+    ext="$save"; [[ "$save" == jpeg ]] && ext="jpg"
+    n=0
+    for page in "${pages[@]}"; do
+      n=$((n + 1))
+      sips -s format "$save" "$page" --out "$out/$(printf 'Seite %03d' "$n").$ext" >/dev/null || exit 6
+    done
+    ;;
+esac
+
+echo "OUTPUT: $out"
+(( doublefeed )) && exit 8
+exit 0

@@ -36,9 +36,17 @@ Undo with `launchctl enable` on the same labels.
 
 ## Use
 
-**App:** open *iX500 Scan*, pick color mode, resolution, duplex and OCR, put
-paper in the feeder, click *Scannen*. The PDF opens when it's done. Settings are
-remembered.
+**App:** open *iX500 Scan*, pick color mode, resolution, save format, duplex,
+OCR and double-feed detection, put paper in the feeder, click *Scan*. The result
+opens when it's done. Settings are remembered. The app switches between German
+and English and between light, dark and system appearance. *Report a bug* opens
+a prefilled GitHub issue in your browser.
+
+Save formats: one PDF with all pages, one PDF per page, or one JPEG/PNG per page
+(per-page output goes into a folder named after the scan).
+
+Double-feed detection uses the scanner's ultrasonic sensor: when two sheets go
+through at once, the scan stops and the pages before it are kept.
 
 **Command line:**
 
@@ -46,6 +54,8 @@ remembered.
 ./scan-ix500                         # color, 300 dpi, duplex, OCR deu+eng
 ./scan-ix500 --mode gray --dpi 200   # grayscale
 ./scan-ix500 --simplex --no-ocr --out ~/Desktop
+./scan-ix500 --save png              # pdf | pdf-pages | jpeg | png
+./scan-ix500 --no-df                 # no double-feed detection (envelopes, cards)
 ```
 
 PDFs go to `~/Documents/Scans` by default. Blank pages are skipped, pages are
