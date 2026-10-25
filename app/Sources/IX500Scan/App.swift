@@ -3,6 +3,9 @@ import SwiftUI
 
 @main
 struct IX500ScanApp: App {
+    @StateObject private var scanner = Scanner()
+    @AppStorage("language") private var language = Strings.defaultLanguage()
+
     init() {
         // Needed when launched as a bare executable (swift run)
         NSApplication.shared.setActivationPolicy(.regular)
@@ -11,6 +14,20 @@ struct IX500ScanApp: App {
     var body: some Scene {
         Window("iX500 Scan", id: "main") {
             ContentView()
+                .environmentObject(scanner)
+        }
+        .windowResizability(.contentSize)
+        .commands {
+            CommandGroup(replacing: .help) {
+                Button(Strings(lang: language).reportBug) {
+                    BugReport.open(log: scanner.log, language: language)
+                }
+            }
+        }
+
+        Settings {
+            SettingsView()
+                .environmentObject(scanner)
         }
         .windowResizability(.contentSize)
     }

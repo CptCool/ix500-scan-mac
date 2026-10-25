@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var scanner = Scanner()
+    @EnvironmentObject private var scanner: Scanner
 
     @AppStorage("mode") private var mode = "color"
     @AppStorage("dpi") private var dpi = 300
@@ -13,15 +13,12 @@ struct ContentView: View {
     @AppStorage("ocr") private var ocr = true
     @AppStorage("outDir") private var outDir = NSHomeDirectory() + "/Documents/Scans"
     @AppStorage("openAfter") private var openAfter = true
-    @AppStorage("appearance") private var appearance = "system"
+    @AppStorage("appearance") private var appearance = "system"  // applied at launch; changed in Settings
     @AppStorage("language") private var language = Strings.defaultLanguage()
     @State private var showLog = false
 
     private var s: Strings { Strings(lang: language) }
     private var savesPDF: Bool { save == "pdf" || save == "pdf-pages" }
-    private var version: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
-    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -75,23 +72,6 @@ struct ContentView: View {
                     }
                     Toggle(s.openAfter, isOn: $openAfter)
                 }
-
-                Section(s.sectionApp) {
-                    Picker(s.appearance, selection: $appearance) {
-                        Text(s.system).tag("system")
-                        Text(s.light).tag("light")
-                        Text(s.dark).tag("dark")
-                    }
-                    .pickerStyle(.segmented)
-                    Picker(s.language, selection: $language) {
-                        Text("Deutsch").tag("de")
-                        Text("English").tag("en")
-                    }
-                    .pickerStyle(.segmented)
-                    LabeledContent("\(s.version) \(version)") {
-                        Button(s.reportBug) { BugReport.open(log: scanner.log, language: language) }
-                    }
-                }
             }
             .formStyle(.grouped)
             .scrollDisabled(true)
@@ -114,19 +94,6 @@ struct ContentView: View {
                             NSWorkspace.shared.activateFileViewerSelecting([out])
                         }
                     }
-                    if scanner.running {
-                        ProgressView().controlSize(.small)
-                        Button(s.cancel) { scanner.cancel() }
-                    } else {
-                        Button(s.scan) {
-                            scanner.scan(mode: mode, dpi: dpi, duplex: duplex, ocr: ocr,
-                                         detectDoubleFeed: detectDoubleFeed, skipBlank: skipBlank,
-                                         save: save, outDir: outDir, openAfter: openAfter,
-                                         failedToStart: s.failedToStart)
-                        }
-                        .keyboardShortcut(.defaultAction)
-                        .controlSize(.large)
-                    }
                 }
 
                 if showLog || scanner.running {
@@ -138,13 +105,37 @@ struct ContentView: View {
                     }
                     .frame(height: 100)
                 }
+
+                if scanner.running {
+                    Button(action: scanner.cancel) {
+                        HStack(spacing: 8) {
+                            ProgressView().controlSize(.small)
+                            Text(s.cancel)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .controlSize(.extraLarge)
+                } else {
+                    Button {
+                        scanner.scan(mode: mode, dpi: dpi, duplex: duplex, ocr: ocr,
+                                     detectDoubleFeed: detectDoubleFeed, skipBlank: skipBlank,
+                                     save: save, outDir: outDir, openAfter: openAfter,
+                                     failedToStart: s.failedToStart)
+                    } label: {
+                        Label(s.scan, systemImage: "doc.viewfinder")
+                            .font(.title3.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.extraLarge)
+                    .keyboardShortcut(.defaultAction)
+                }
             }
             .padding(16)
         }
         .frame(width: 500)
         .fixedSize(horizontal: false, vertical: true)
         .onAppear { Appearance.apply(appearance) }
-        .onChange(of: appearance) { _, value in Appearance.apply(value) }
     }
 
     private func chooseFolder() {

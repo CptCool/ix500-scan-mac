@@ -38,9 +38,9 @@ Undo with `launchctl enable` on the same labels.
 
 **App:** open *iX500 Scan*, pick color mode, resolution, save format, duplex,
 OCR and double-feed detection, put paper in the feeder, click *Scan*. The result
-opens when it's done. Settings are remembered. The app switches between German
-and English and between light, dark and system appearance. *Report a bug* opens
-a prefilled GitHub issue in your browser.
+opens when it's done. Settings are remembered. Appearance (light, dark, system)
+and language (German, English) live in the Settings window (⌘,). *Report a bug*
+(Settings window or Help menu) opens a prefilled GitHub issue in your browser.
 
 Save formats: one PDF with all pages, one PDF per page, or one JPEG/PNG per page
 (per-page output goes into a folder named after the scan).
