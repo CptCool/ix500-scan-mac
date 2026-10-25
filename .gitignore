@@ -1,0 +1,6 @@
+.build/
+app/build/
+*.pdf
+*.png
+*.tif
+.DS_Store

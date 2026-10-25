@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# Scan from a Fujitsu/PFU ScanSnap iX500 over USB (SANE) into a searchable PDF.
+#
+# Usage: scan-ix500 [--mode color|gray|bw] [--dpi N] [--simplex] [--lang deu+eng]
+#                   [--out DIR] [--no-ocr]
+#
+# The last line of output is "PDF: <path>" on success.
+
+set -uo pipefail
+
+# GUI apps don't inherit the shell PATH
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+mode="color"
+dpi=300
+source="ADF Duplex"
+lang="deu+eng"
+outdir="$HOME/Documents/Scans"
+ocr=1
+
+while (( $# )); do
+  case "$1" in
+    --mode)    mode="$2"; shift 2 ;;
+    --dpi)     dpi="$2"; shift 2 ;;
+    --simplex) source="ADF Front"; shift ;;
+    --lang)    lang="$2"; shift 2 ;;
+    --out)     outdir="$2"; shift 2 ;;
+    --no-ocr)  ocr=0; shift ;;
+    -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
+    *) echo "Unknown option: $1" >&2; exit 2 ;;
+  esac
+done
+
+case "$mode" in
+  color) sane_mode="Color" ;;
+  gray)  sane_mode="Gray" ;;
+  bw)    sane_mode="Lineart" ;;
+  *) echo "Unknown mode: $mode (color|gray|bw)" >&2; exit 2 ;;
+esac
+
+for tool in scanimage img2pdf; do
+  command -v "$tool" >/dev/null || { echo "Missing $tool. Run: brew install sane-backends img2pdf ocrmypdf tesseract-lang" >&2; exit 3; }
+done
+(( ocr )) && ! command -v ocrmypdf >/dev/null && { echo "Missing ocrmypdf. Run: brew install ocrmypdf tesseract-lang" >&2; exit 3; }
+
+device="$(scanimage -f '%d%n' 2>/dev/null | grep -m1 '^fujitsu:')"
+if [[ -z "$device" ]]; then
+  echo "No iX500 found. Is it connected via USB, switched on (feeder open), and ScanSnap Home quit?" >&2
+  exit 4
+fi
+echo "Device: $device"
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+echo "Scanning ($sane_mode, $dpi dpi, $source) ..."
+# scanimage exits non-zero when the feeder runs empty, which is the normal end of a batch
+scanimage -d "$device" --source "$source" --mode "$sane_mode" --resolution "$dpi" \
+  --swdeskew=yes --swcrop=yes --swskip 10 \
+  --format=tiff --batch="$tmp/page-%03d.tif" 2>&1 | grep -E '^Scanned page|error|Error' || true
+
+shopt -s nullglob
+pages=("$tmp"/page-*.tif)
+if (( ${#pages[@]} == 0 )); then
+  echo "No pages scanned. Is there paper in the feeder?" >&2
+  exit 5
+fi
+echo "${#pages[@]} page(s) scanned"
+
+mkdir -p "$outdir"
+out="$outdir/Scan $(date '+%Y-%m-%d %H.%M.%S').pdf"
+
+img2pdf "${pages[@]}" -o "$tmp/raw.pdf" || exit 6
+if (( ocr )); then
+  echo "Running OCR ($lang) ..."
+  ocrmypdf -q -l "$lang" --rotate-pages --optimize 1 "$tmp/raw.pdf" "$out" || exit 7
+else
+  mv "$tmp/raw.pdf" "$out"
+fi
+
+echo "PDF: $out"
