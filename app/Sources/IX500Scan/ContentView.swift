@@ -119,8 +119,7 @@ struct ContentView: View {
                     Button {
                         scanner.scan(mode: mode, dpi: dpi, duplex: duplex, ocr: ocr,
                                      detectDoubleFeed: detectDoubleFeed, skipBlank: skipBlank,
-                                     save: save, outDir: outDir, openAfter: openAfter,
-                                     failedToStart: s.failedToStart)
+                                     save: save, outDir: outDir, openAfter: openAfter, strings: s)
                     } label: {
                         Label(s.scan, systemImage: "doc.viewfinder")
                             .font(.title3.weight(.semibold))

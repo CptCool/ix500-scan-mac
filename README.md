@@ -2,24 +2,48 @@
 
 Use a Fujitsu/PFU **ScanSnap iX500** on current macOS without ScanSnap Home.
 Scans over USB via [SANE](http://www.sane-project.org/)'s `fujitsu` backend and
-produces a searchable PDF (OCR via `ocrmypdf`/Tesseract).
+produces searchable PDFs.
 
-- `scan-ix500` — command-line scanner script
-- `app/` — a minimal SwiftUI app around the script
+- `app/` — a small SwiftUI app. It bundles SANE and does OCR with Apple's Vision
+  framework, so it needs nothing else installed.
+- `scan-ix500` — a command-line script (uses Homebrew's SANE, `img2pdf` and
+  `ocrmypdf`/Tesseract)
 
 No pairing key, no network protocol reverse engineering: the iX500 is a
-supported SANE device over USB.
+supported SANE device over USB. Apple silicon only.
 
 ## Install
 
+### Option 1: Homebrew
+
 ```bash
-brew install sane-backends img2pdf ocrmypdf tesseract-lang
-git clone https://github.com/CptCool/ix500-scan-mac.git
-cd ix500-scan-mac
-app/build.sh install        # builds "iX500 Scan.app" into /Applications
+brew install --cask cptcool/tap/ix500-scan
 ```
 
-Building needs the Xcode Command Line Tools (`xcode-select --install`).
+Installs the app and the `scan-ix500` command, with the tools the command needs.
+
+### Option 2: App bundle
+
+Download `iX500-Scan-<version>.zip` from
+[Releases](https://github.com/CptCool/ix500-scan-mac/releases), unzip it and drag
+*iX500 Scan* into *Applications*. Nothing else to install.
+
+### First launch
+
+The app isn't notarized by Apple. On first launch macOS refuses to open it: go to
+*System Settings → Privacy & Security* and click *Open Anyway*. (Homebrew users can
+also run `xattr -d com.apple.quarantine "/Applications/iX500 Scan.app"`.)
+
+### Build from source
+
+```bash
+git clone https://github.com/CptCool/ix500-scan-mac.git
+cd ix500-scan-mac
+brew install sane-backends   # bundled into the app at build time
+app/build.sh install         # or: app/build.sh zip
+```
+
+Needs the Xcode Command Line Tools (`xcode-select --install`).
 
 ## ScanSnap Home must not be running
 
@@ -48,7 +72,8 @@ Save formats: one PDF with all pages, one PDF per page, or one JPEG/PNG per page
 Double-feed detection uses the scanner's ultrasonic sensor: when two sheets go
 through at once, the scan stops and the pages before it are kept.
 
-**Command line:**
+**Command line** (needs `brew install sane-backends img2pdf ocrmypdf tesseract-lang`,
+which the Homebrew install does for you):
 
 ```bash
 ./scan-ix500                         # color, 300 dpi, duplex, OCR deu+eng

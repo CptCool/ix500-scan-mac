@@ -54,5 +54,15 @@ struct Strings {
     var openAfter: String { t("Nach dem Scannen öffnen", "Open after scanning") }
     var log: String { t("Protokoll", "Log") }
     var version: String { t("Version", "Version") }
-    var failedToStart: String { t("Konnte Skript nicht starten", "Could not start script") }
+    var device: String { t("Gerät", "Device") }
+    var scanning: String { t("Scanne", "Scanning") }
+    var pagesScanned: String { t("Seite(n) gescannt", "page(s) scanned") }
+    var saved: String { t("Gespeichert", "Saved") }
+    var cancelled: String { t("Abgebrochen.", "Cancelled.") }
+    var noPages: String { t("Keine Seiten gescannt. Liegt Papier im Einzug?", "No pages scanned. Is there paper in the feeder?") }
+    var noScanner: String {
+        t("Kein iX500 gefunden. Per USB angeschlossen, Klappe offen und ScanSnap Home beendet?",
+          "No iX500 found. Connected via USB, feeder lid open and ScanSnap Home quit?")
+    }
+    var settingsTitle: String { t("Einstellungen", "Settings") }
 }

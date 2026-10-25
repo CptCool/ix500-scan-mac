@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// App preferences, opened with ⌘, or from the app menu.
@@ -38,5 +39,15 @@ struct SettingsView: View {
         .frame(width: 420)
         .fixedSize(horizontal: false, vertical: true)
         .onChange(of: appearance) { _, value in Appearance.apply(value) }
+        .background(WindowTitle(title: s.settingsTitle))
+    }
+}
+
+/// Sets the hosting window's title; the Settings scene otherwise uses the system language.
+private struct WindowTitle: NSViewRepresentable {
+    let title: String
+    func makeNSView(context: Context) -> NSView { NSView() }
+    func updateNSView(_ view: NSView, context: Context) {
+        DispatchQueue.main.async { view.window?.title = title }
     }
 }
