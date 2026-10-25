@@ -79,8 +79,9 @@ struct ContentView: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 10) {
-                if scanner.doubleFeed {
-                    Label(s.doubleFeedWarning, systemImage: "exclamationmark.triangle.fill")
+                if let problem = scanner.problem {
+                    Label(problem.message(s) + (scanner.output != nil ? " " + s.pagesKept : ""),
+                          systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
                 }
 

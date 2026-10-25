@@ -10,8 +10,9 @@
 # OCR applies to PDFs only. Blank pages are dropped unless --keep-blank is given.
 #
 # Double-feed detection (ultrasonic) is on by default: the scanner stops when it
-# pulls in two sheets at once. Pages scanned before that are still saved, and
-# the script exits with 8. --no-df turns it off (envelopes, cards, stickers).
+# pulls in two sheets at once. --no-df turns it off (envelopes, cards, stickers).
+# On a double feed, paper jam, open cover, hardware error or lost connection the
+# pages scanned before it are still saved, and the script exits with 8.
 #
 # The last line of output is "OUTPUT: <path>" (the file, or the folder for
 # per-page output) whenever something was saved.
@@ -83,21 +84,34 @@ fi
 
 echo "Scanning ($sane_mode, $dpi dpi, $source, double-feed detection $( (( df )) && echo on || echo off )) ..."
 # scanimage exits non-zero when the feeder runs empty, which is the normal end of a batch
-scanimage -d "$device" --source "$source" --mode "$sane_mode" --resolution "$dpi" \
+# Debug level 2 makes the backend log the scanner's sense codes (jam, double feed, ...)
+SANE_DEBUG_FUJITSU=2 scanimage -d "$device" --source "$source" --mode "$sane_mode" --resolution "$dpi" \
   --swdeskew=yes --swcrop=yes --swskip "$skip" "${df_opts[@]}" \
   --format=tiff --batch="$tmp/page-%03d.tif" > "$tmp/scan.log" 2>&1
-grep -E '^Scanned page|error|Error' "$tmp/scan.log"
+grep '^Scanned page' "$tmp/scan.log"
 
-doublefeed=0
-if grep -qi 'jammed' "$tmp/scan.log"; then
-  doublefeed=1
-  echo "DOUBLE FEED: the scanner stopped, probably two sheets at once. Check the last page and rescan the rest." >&2
+stopped=0
+problem=""
+if grep -q 'Medium error: double feed' "$tmp/scan.log"; then
+  problem="DOUBLE FEED: two sheets went in at once. Separate them and rescan the rest."
+elif grep -q 'Medium error: paper jam\|Document feeder jammed' "$tmp/scan.log"; then
+  problem="PAPER JAM: open the lid, remove the sheet and rescan the rest."
+elif grep -q 'Medium error: cover open\|Scanner cover is open' "$tmp/scan.log"; then
+  problem="COVER OPEN: close the scanner lid."
+elif grep -q 'Hardware error: ' "$tmp/scan.log"; then
+  problem="HARDWARE ERROR: $(grep -m1 -o 'Hardware error: .*' "$tmp/scan.log")"
+elif grep -q 'Error during device I/O' "$tmp/scan.log"; then
+  problem="CONNECTION LOST: check the USB cable and power."
+fi
+if [[ -n "$problem" ]]; then
+  stopped=1
+  echo "$problem" >&2
 fi
 
 shopt -s nullglob
 pages=("$tmp"/page-*.tif)
 if (( ${#pages[@]} == 0 )); then
-  (( doublefeed )) && exit 8
+  (( stopped )) && exit 8
   echo "No pages scanned. Is there paper in the feeder?" >&2
   exit 5
 fi
@@ -145,5 +159,5 @@ case "$save" in
 esac
 
 echo "OUTPUT: $out"
-(( doublefeed )) && exit 8
+(( stopped )) && exit 8
 exit 0

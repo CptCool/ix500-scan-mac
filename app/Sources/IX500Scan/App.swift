@@ -37,7 +37,7 @@ final class Scanner: ObservableObject {
     @Published var running = false
     @Published var log = ""
     @Published var output: URL?
-    @Published var doubleFeed = false
+    @Published var problem: ScanProblem?
 
     private var process: Process?
     private var cancelled = false
@@ -63,7 +63,7 @@ final class Scanner: ObservableObject {
         running = true
         cancelled = false
         output = nil
-        doubleFeed = false
+        problem = nil
         log = ""
 
         DispatchQueue.global(qos: .userInitiated).async { [self] in
@@ -71,7 +71,7 @@ final class Scanner: ObservableObject {
                 .appendingPathComponent("ix500-" + UUID().uuidString)
             defer { try? FileManager.default.removeItem(at: tmp) }
             var result: URL?
-            var df = false
+            var problem: ScanProblem?
             do {
                 try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
                 let device = try findDevice(s)
@@ -87,16 +87,20 @@ final class Scanner: ObservableObject {
                     : ["--df-action", "Continue"]
                 emit("\(s.scanning) …\n")
                 // scanimage exits non-zero when the feeder runs empty, the normal end of a batch
-                let out = try runProcess(sane.scanimage, args, env: sane.env, stream: true)
+                var env = sane.env
+                env["SANE_DEBUG_FUJITSU"] = "2"  // logs the scanner's sense codes (jam, double feed, …)
+                let out = try runProcess(sane.scanimage, args, env: env, stream: true)
                 if cancelled { throw CancellationError() }
-                df = out.localizedCaseInsensitiveContains("jammed")
-                if df { emit(s.doubleFeedWarning + "\n") }
 
                 let pages = try FileManager.default.contentsOfDirectory(at: tmp, includingPropertiesForKeys: nil)
                     .filter { $0.pathExtension == "tif" }
                     .sorted { $0.lastPathComponent < $1.lastPathComponent }
+                problem = ScanProblem.detect(in: out)
+                // The backend logs "busy" while the scanner warms up; only an error if nothing was scanned
+                if problem == .busy, !pages.isEmpty { problem = nil }
+                if let problem { emit(problem.message(s) + "\n") }
                 guard !pages.isEmpty else {
-                    if df { throw ScanError(message: "") }
+                    if problem != nil { throw ScanError(message: "") }
                     throw ScanError(message: s.noPages)
                 }
                 emit("\(pages.count) \(s.pagesScanned)\n")
@@ -119,7 +123,7 @@ final class Scanner: ObservableObject {
             DispatchQueue.main.async {
                 self.running = false
                 self.process = nil
-                self.doubleFeed = df
+                self.problem = problem
                 self.output = result
                 if openAfter, let result { NSWorkspace.shared.open(result) }
             }

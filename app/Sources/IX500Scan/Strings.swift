@@ -31,9 +31,26 @@ struct Strings {
     var showInFinder: String { t("Im Finder zeigen", "Show in Finder") }
     var hint: String { t("Papier einlegen und auf Scannen klicken.", "Load paper and click Scan.") }
     var doubleFeedWarning: String {
-        t("Doppeleinzug erkannt: Der Scanner hat angehalten. Letzte Seite prüfen und den Rest erneut scannen.",
-          "Double feed detected: the scanner stopped. Check the last page and rescan the rest.")
+        t("Doppeleinzug erkannt: Der Scanner hat angehalten. Blätter trennen und den Rest erneut scannen.",
+          "Double feed detected: the scanner stopped. Separate the sheets and rescan the rest.")
     }
+    var paperJam: String {
+        t("Papierstau: Klappe öffnen, Blatt entnehmen und den Rest erneut scannen.",
+          "Paper jam: open the lid, remove the sheet and rescan the rest.")
+    }
+    var coverOpen: String { t("Die Scannerklappe ist offen. Bitte schließen.", "The scanner lid is open. Please close it.") }
+    var stopButton: String { t("Am Scanner abgebrochen.", "Stopped at the scanner.") }
+    var busy: String {
+        t("Der Scanner ist belegt. Läuft noch ScanSnap Home oder ein anderes Scanprogramm?",
+          "The scanner is busy. Is ScanSnap Home or another scan app still running?")
+    }
+    var disconnected: String {
+        t("Verbindung zum Scanner verloren. USB-Kabel und Strom prüfen.",
+          "Lost connection to the scanner. Check the USB cable and power.")
+    }
+    var hardwareError: String { t("Hardwarefehler am Scanner", "Scanner hardware error") }
+    var feederProblem: String { t("Problem am Einzug", "Feeder problem") }
+    var pagesKept: String { t("Die Seiten davor wurden gespeichert.", "The pages before it were saved.") }
     var appearance: String { t("Darstellung", "Appearance") }
     var system: String { "System" }
     var light: String { t("Hell", "Light") }
