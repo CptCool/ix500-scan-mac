@@ -58,7 +58,7 @@ through at once, the scan stops and the pages before it are kept.
 ./scan-ix500 --no-df                 # no double-feed detection (envelopes, cards)
 ```
 
-PDFs go to `~/Documents/Scans` by default. Blank pages are skipped, pages are
+PDFs go to `~/Documents/Scans` by default. Blank pages are skipped (`--keep-blank` keeps them), pages are
 deskewed and cropped.
 
 ## Check that the scanner is visible

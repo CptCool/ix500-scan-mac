@@ -40,5 +40,19 @@ struct Strings {
     var dark: String { t("Dunkel", "Dark") }
     var language: String { t("Sprache", "Language") }
     var reportBug: String { t("Bug melden …", "Report a bug …") }
+    var sectionScan: String { t("Bild", "Image") }
+    var sectionFeed: String { t("Einzug", "Feeder") }
+    var sectionSave: String { t("Speichern", "Saving") }
+    var sectionApp: String { t("Programm", "App") }
+    var sides: String { t("Seiten", "Sides") }
+    var frontOnly: String { t("Nur Vorderseite", "Front only") }
+    var bothSides: String { t("Beidseitig", "Both sides") }
+    var doubleFeedHelp: String { t("Hält an, wenn zwei Blätter gleichzeitig eingezogen werden. Für Umschläge und Karten ausschalten.",
+                                   "Stops when two sheets feed at once. Turn off for envelopes and cards.") }
+    var skipBlank: String { t("Leere Seiten weglassen", "Skip blank pages") }
+    var ocrHelp: String { t("Macht PDFs durchsuchbar (Deutsch + Englisch).", "Makes PDFs searchable (German + English).") }
+    var openAfter: String { t("Nach dem Scannen öffnen", "Open after scanning") }
+    var log: String { t("Protokoll", "Log") }
+    var version: String { t("Version", "Version") }
     var failedToStart: String { t("Konnte Skript nicht starten", "Could not start script") }
 }

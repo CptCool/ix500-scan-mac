@@ -2,12 +2,12 @@
 # Scan from a Fujitsu/PFU ScanSnap iX500 over USB (SANE) into a searchable PDF.
 #
 # Usage: scan-ix500 [--mode color|gray|bw] [--dpi N] [--simplex] [--lang deu+eng]
-#                   [--save pdf|pdf-pages|jpeg|png] [--out DIR] [--no-ocr] [--no-df]
+#                   [--save pdf|pdf-pages|jpeg|png] [--out DIR] [--no-ocr] [--no-df] [--keep-blank]
 #
 # --save pdf        all pages in one PDF (default)
 # --save pdf-pages  one PDF per page, in a folder named after the scan
 # --save jpeg|png   one image per page, in a folder named after the scan
-# OCR applies to PDFs only.
+# OCR applies to PDFs only. Blank pages are dropped unless --keep-blank is given.
 #
 # Double-feed detection (ultrasonic) is on by default: the scanner stops when it
 # pulls in two sheets at once. Pages scanned before that are still saved, and
@@ -29,6 +29,7 @@ outdir="$HOME/Documents/Scans"
 ocr=1
 df=1
 save="pdf"
+skip=10
 
 while (( $# )); do
   case "$1" in
@@ -40,6 +41,7 @@ while (( $# )); do
     --no-ocr)  ocr=0; shift ;;
     --no-df)   df=0; shift ;;
     --save)    save="$2"; shift 2 ;;
+    --keep-blank) skip=0; shift ;;
     -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
@@ -82,7 +84,7 @@ fi
 echo "Scanning ($sane_mode, $dpi dpi, $source, double-feed detection $( (( df )) && echo on || echo off )) ..."
 # scanimage exits non-zero when the feeder runs empty, which is the normal end of a batch
 scanimage -d "$device" --source "$source" --mode "$sane_mode" --resolution "$dpi" \
-  --swdeskew=yes --swcrop=yes --swskip 10 "${df_opts[@]}" \
+  --swdeskew=yes --swcrop=yes --swskip "$skip" "${df_opts[@]}" \
   --format=tiff --batch="$tmp/page-%03d.tif" > "$tmp/scan.log" 2>&1
 grep -E '^Scanned page|error|Error' "$tmp/scan.log"
 

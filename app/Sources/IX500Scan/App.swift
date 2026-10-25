@@ -35,8 +35,8 @@ final class Scanner: ObservableObject {
             .appendingPathComponent("scan-ix500")
     }
 
-    func scan(mode: String, dpi: Int, duplex: Bool, ocr: Bool, detectDoubleFeed: Bool,
-              save: String, outDir: String, failedToStart: String) {
+    func scan(mode: String, dpi: Int, duplex: Bool, ocr: Bool, detectDoubleFeed: Bool, skipBlank: Bool,
+              save: String, outDir: String, openAfter: Bool, failedToStart: String) {
         guard !running else { return }
         running = true
         output = nil
@@ -47,6 +47,7 @@ final class Scanner: ObservableObject {
         if !duplex { args.append("--simplex") }
         if !ocr { args.append("--no-ocr") }
         if !detectDoubleFeed { args.append("--no-df") }
+        if !skipBlank { args.append("--keep-blank") }
 
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/bin/bash")
@@ -68,7 +69,7 @@ final class Scanner: ObservableObject {
                 self.process = nil
                 // 8 = stopped on a double feed; the pages before it were still saved
                 self.doubleFeed = proc.terminationStatus == 8
-                if proc.terminationStatus == 0 || self.doubleFeed, let out = self.output {
+                if openAfter, proc.terminationStatus == 0 || self.doubleFeed, let out = self.output {
                     NSWorkspace.shared.open(out)
                 }
             }
